@@ -9,6 +9,16 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@huggingface/transformers": "^3.7.2"
+    "@huggingface/transformers": "^3.7.2",
+    "ai": "^5.0.22",
+    "kokoro-js": "^1.2.1",
+    "mic": "^2.1.2",
+    "node-audiorecorder": "^3.0.0",
+    "node-microphone": "^0.1.6",
+    "node-wav-player": "^1.0.0",
+    "ollama-ai-provider-v2": "^1.1.2",
+    "play-sound": "^1.1.6",
+    "speaker": "^0.5.5",
+    "wavefile": "^11.0.0"
   }
 }
