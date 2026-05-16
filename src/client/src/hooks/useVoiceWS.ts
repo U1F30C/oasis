@@ -11,12 +11,32 @@ export function useVoiceWS() {
   const [state, setState] = useState<PipelineState>("idle");
   const [error, setError] = useState<string | null>(null);
 
+  // Audio streaming queue
+  const audioQueue = useRef<ArrayBuffer[]>([]);
+  const playbackRunning = useRef(false);
+  const responseComplete = useRef(false);
+
+  const drainQueue = useCallback(async () => {
+    if (playbackRunning.current) return;
+    playbackRunning.current = true;
+    while (audioQueue.current.length > 0) {
+      const chunk = audioQueue.current.shift()!;
+      try {
+        await playWavBuffer(chunk);
+      } catch (err) {
+        console.error("[Audio] Playback error:", err);
+        setError(String(err));
+      }
+    }
+    playbackRunning.current = false;
+    if (responseComplete.current) setState("idle");
+  }, []);
+
   const connect = useCallback((url: string) => {
     if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) return;
 
-    // Use absolute URL if starting with ws://, otherwise relative for proxy
     const socketUrl = url.startsWith("ws") ? url : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}${url}`;
-    
+
     ws.current = new WebSocket(socketUrl);
     ws.current.binaryType = "arraybuffer";
 
@@ -30,25 +50,25 @@ export function useVoiceWS() {
       setError(null);
     };
 
-    ws.current.onmessage = async (e: MessageEvent) => {
+    ws.current.onmessage = (e: MessageEvent) => {
       if (typeof e.data === "string") {
         const msg = JSON.parse(e.data) as ControlMessage;
         if (msg.type === "processing") setState("processing");
+        if (msg.type === "done") {
+          responseComplete.current = true;
+          if (!playbackRunning.current && audioQueue.current.length === 0) setState("idle");
+        }
         if (msg.type === "error") {
           console.error("[WS] Server error:", msg.message);
           setError(msg.message);
+          audioQueue.current = [];
+          responseComplete.current = true;
           setState("idle");
         }
       } else {
         setState("playing");
-        try {
-          await playWavBuffer(e.data as ArrayBuffer);
-        } catch (err) {
-          console.error("[Audio] Playback error:", err);
-          setError(String(err));
-        } finally {
-          setState("idle");
-        }
+        audioQueue.current.push(e.data as ArrayBuffer);
+        drainQueue();
       }
     };
 
@@ -61,7 +81,7 @@ export function useVoiceWS() {
       console.log("[WS] Disconnected");
       setState("idle");
     };
-  }, []);
+  }, [drainQueue]);
 
   const stopRecording = useCallback(() => {
     if (autoStopTimer.current !== null) {
@@ -79,6 +99,10 @@ export function useVoiceWS() {
       setError("Not connected to server");
       return;
     }
+
+    // Reset queue state for new response
+    audioQueue.current = [];
+    responseComplete.current = false;
 
     try {
       if (!streamRef.current) {
@@ -107,7 +131,6 @@ export function useVoiceWS() {
       setState("recording");
       setError(null);
 
-      // Auto-stop after 30 seconds
       autoStopTimer.current = window.setTimeout(() => {
         if (recorder.current && recorder.current.state === "recording") {
           console.warn("[useVoiceWS] 30s limit reached — auto-stopping");

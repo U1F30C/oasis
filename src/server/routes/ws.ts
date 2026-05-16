@@ -1,5 +1,5 @@
 import { WebSocket } from "ws";
-import { generateText } from "ai";
+import { streamText } from "ai";
 import { getSttPipeline, runTts } from "../pipeline.js";
 import { generateWav } from "../tts.js";
 import { bufferToFloat32 } from "../audio-utils.js";
@@ -10,7 +10,21 @@ function send(ws: WebSocket, msg: ControlMessage): void {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
-async function runPipeline(data: Buffer): Promise<Buffer> {
+async function* streamSentences(textStream: AsyncIterable<string>): AsyncGenerator<string> {
+  let buf = "";
+  for await (const token of textStream) {
+    buf += token;
+    const m = /[.!?]\s+/.exec(buf);
+    if (m) {
+      const sentence = buf.slice(0, m.index + 1).trim();
+      if (sentence.length >= 3) yield sentence;
+      buf = buf.slice(m.index + m[0].length);
+    }
+  }
+  if (buf.trim().length >= 3) yield buf.trim();
+}
+
+async function runPipeline(data: Buffer, ws: WebSocket): Promise<void> {
   const audioData = await bufferToFloat32(data);
 
   const sttPipe = getSttPipeline();
@@ -25,15 +39,19 @@ async function runPipeline(data: Buffer): Promise<Buffer> {
     throw new Error("No clear input detected");
   }
 
-  const { text: llmResponse } = await generateText({
+  const result = streamText({
     model: gemma3n,
     prompt: `You are a helpful voice assistant. Keep responses concise and conversational and very short, one or two sentences. User said: "${userText}"`,
   });
 
-  console.log(`🤖 [LLM] "${llmResponse}"`);
+  for await (const sentence of streamSentences(result.textStream)) {
+    console.log(`🤖 [LLM] "${sentence}"`);
+    const ttsOut = await runTts(sentence);
+    const wavBuffer = generateWav(ttsOut).toBuffer() as Buffer;
+    if (ws.readyState === WebSocket.OPEN) ws.send(wavBuffer);
+  }
 
-  const ttsOut = await runTts(llmResponse);
-  return generateWav(ttsOut).toBuffer() as Buffer;
+  send(ws, { type: "done" });
 }
 
 export function handleConnection(ws: WebSocket): void {
@@ -61,8 +79,7 @@ export function handleConnection(ws: WebSocket): void {
     send(ws, { type: "processing" });
 
     try {
-      const wavBuffer = await runPipeline(data);
-      if (ws.readyState === WebSocket.OPEN) ws.send(wavBuffer);
+      await runPipeline(data, ws);
     } catch (error) {
       console.error("❌ [Pipeline error]", error);
       send(ws, { type: "error", message: String(error) });
