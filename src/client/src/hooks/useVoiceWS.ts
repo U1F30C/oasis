@@ -151,5 +151,11 @@ export function useVoiceWS() {
     };
   }, []);
 
-  return { state, error, connect, startRecording, stopRecording };
+  const clearHistory = useCallback(() => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: "clear" }));
+    }
+  }, []);
+
+  return { state, error, connect, startRecording, stopRecording, clearHistory };
 }

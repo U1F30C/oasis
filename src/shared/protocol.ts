@@ -20,6 +20,7 @@ export type ControlMessage =
   | { type: "done" }
   | { type: "error"; message: string }
   | { type: "ping" }
-  | { type: "pong" };
+  | { type: "pong" }
+  | { type: "clear" };
 
 export type PipelineState = "idle" | "recording" | "processing" | "playing";
