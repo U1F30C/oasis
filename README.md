@@ -1,6 +1,8 @@
 # Oasis
 
-Local voice assistant — press to talk, get a spoken response. Runs entirely on your machine.
+![Oasis UI](screenshots/oasis.png)
+
+A proof-of-concept voice assistant that is fully local and fully private — no internet connection required after initial setup, designed to run on low-cost hardware.
 
 ## Requirements
 
@@ -76,6 +78,27 @@ npm run dev
 Open `http://localhost:5173`. Press and hold the button to speak, release to get a response.
 
 ML models are downloaded from Hugging Face on first run and cached locally.
+
+## Roadmap
+
+### Full-duplex conversation
+Move from press-to-talk to a natural, always-listening mode:
+- **Voice activity detection (VAD)** — detect speech start/end automatically, no button required (Silero VAD has a WASM build usable in-browser)
+- **Interruption support** — let the user cut off the assistant mid-response; drain the audio queue and cancel the in-flight pipeline
+- **Streaming STT** — Whisper is batch-only; evaluate streaming-capable alternatives (Moonshine, Vosk) or a sliding-window chunked approach
+
+### IoT device client
+Run Oasis on low-cost hardware (Raspberry Pi, Orange Pi, similar):
+- Native audio I/O client using ALSA/PulseAudio — no browser required
+- Evaluate running STT and TTS models directly on-device (Whisper tiny, Kokoro, KittenTTS nano) to remove the server dependency entirely
+- Explore quantized LLMs small enough for edge hardware (Gemma 3 270M, Qwen 2.5 0.5B)
+- Physical button or wake-word trigger as an alternative to VAD
+
+### Useful integrations & memory
+Make the assistant actually useful beyond Q&A:
+- **Persistent memory** — store and retrieve facts about the user across sessions (manually curated or extracted automatically from conversation)
+- **Tool use / integrations** — home automation (Home Assistant), calendar, timers, web search for grounding
+- **Existing assistant frameworks** — evaluate integrating with or replacing the LLM layer with a purpose-built local assistant (e.g. Picoclaw, Open Voice OS) for richer skill support
 
 ## Experiments
 
