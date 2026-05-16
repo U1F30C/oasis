@@ -669,22 +669,25 @@ async function captureAndSendAudio(blob: Blob, ws: WebSocket) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Ollama IP discrepancy**
    - What we know: `index.ts` uses `192.168.1.6:11434`, `llm.ts` uses `192.168.1.4:11434` — two different IPs
    - What's unclear: Which is current? Is Ollama on a fixed host?
    - Recommendation: Use `process.env.OLLAMA_BASE_URL` with a `.env` file; default to one of the IPs for local dev
+   - **RESOLVED:** Use `OLLAMA_BASE_URL` environment variable (default `http://192.168.1.4:11434/api`). Both `index.ts` and `llm.ts` values are replaced by env var in `src/server/lib/llm.ts`. `.env.example` documents the variable.
 
 2. **TTS model choice**
    - What we know: `index.ts` uses `Xenova/speecht5_tts`; `tts.ts` uses `Xenova/mms-tts-eng`; `kokoro.ts` shows `onnx-community/Kokoro-82M-ONNX` via `kokoro-js`
    - What's unclear: Which TTS produces the best quality/latency for this use case?
    - Recommendation: Default to `Xenova/speecht5_tts` (matches index.ts); make model configurable via env var
+   - **RESOLVED:** Default to `Xenova/speecht5_tts` (matches working `index.ts`). Configurable via `TTS_MODEL` env var.
 
 3. **32-bit float WAV browser playback**
    - What we know: `generateWav()` creates 32f WAV; browser `decodeAudioData` behavior with 32f is inconsistent
    - What's unclear: Does Chrome/Firefox accept 32f WAV from `decodeAudioData`?
    - Recommendation: Convert to 16-bit integer WAV on server before send (`wav.toBitDepth("16")`) to be safe
+   - **RESOLVED:** `generateWav()` in `src/server/lib/tts.ts` calls `wav.toBitDepth("16")` before returning buffer. All browsers support 16-bit WAV via `decodeAudioData()`.
 
 ---
 
