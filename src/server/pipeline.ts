@@ -1,19 +1,19 @@
 import { pipeline } from "@huggingface/transformers";
+import { KokoroTTS } from "kokoro-js";
 
 type Pipeline = any;
+type TtsProvider =
+  | { kind: "transformers"; pipe: Pipeline }
+  | { kind: "kokoro"; tts: KokoroTTS; voice: string };
 
-interface PipelineInstances {
-  stt: Pipeline | null;
-  tts: Pipeline | null;
-}
+const TTS_MODEL = process.env.TTS_MODEL ?? "onnx-community/Kokoro-82M-ONNX";
+const TTS_VOICE = process.env.TTS_VOICE ?? "af_heart";
 
-const TTS_MODEL = process.env.TTS_MODEL ?? "Xenova/speecht5_tts";
-
-// Only required for speecht5_tts; other models (mms-tts-eng, etc.) don't use it
+// Only required for speecht5_tts; other transformers models don't use it
 const SPEAKER_EMBEDDINGS =
   "https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin";
 
-const instances: PipelineInstances = { stt: null, tts: null };
+const instances: { stt: Pipeline | null; tts: TtsProvider | null } = { stt: null, tts: null };
 
 export async function initPipelines(): Promise<void> {
   if (instances.stt && instances.tts) return;
@@ -26,7 +26,12 @@ export async function initPipelines(): Promise<void> {
   );
 
   console.log(`🗣️ Loading TTS pipeline (${TTS_MODEL})...`);
-  instances.tts = await pipeline("text-to-speech", TTS_MODEL);
+  if (TTS_MODEL.toLowerCase().includes("kokoro")) {
+    const tts = await KokoroTTS.from_pretrained(TTS_MODEL, { dtype: "q4" });
+    instances.tts = { kind: "kokoro", tts, voice: TTS_VOICE };
+  } else {
+    instances.tts = { kind: "transformers", pipe: await pipeline("text-to-speech", TTS_MODEL) };
+  }
 
   console.log("✅ ML pipelines ready.");
 }
@@ -38,6 +43,9 @@ export function getSttPipeline(): Pipeline {
 
 export async function runTts(text: string): Promise<{ sampling_rate: number; audio: Float32Array }> {
   if (!instances.tts) throw new Error("TTS pipeline not initialized — call initPipelines() first");
+  if (instances.tts.kind === "kokoro") {
+    return instances.tts.tts.generate(text, { voice: instances.tts.voice as any });
+  }
   const opts = TTS_MODEL === "Xenova/speecht5_tts" ? { speaker_embeddings: SPEAKER_EMBEDDINGS } : {};
-  return instances.tts(text, opts);
+  return instances.tts.pipe(text, opts);
 }
