@@ -11,9 +11,10 @@ const AudioRecorder = require("node-audiorecorder");
 
 // Initialize Ollama LLM
 const ollama = createOllama({
-  baseURL: "http://192.168.1.4:11434/api",
+  baseURL: "http://192.168.1.6:11434/api",
 });
-const gemma3_270m = ollama("gemma3:270m");
+// const gemma3_270m = ollama("gemma3:270m");
+const gemma3n = ollama("gemma3n");
 
 // Audio recorder configuration
 const audioOptions = {
@@ -216,7 +217,7 @@ async function processRecording(
     // 3. Get LLM response
     console.log("🤖 Generating response...");
     const { text: llmResponse } = await generateText({
-      model: gemma3_270m,
+      model: gemma3n,
       prompt: `You are a helpful voice assistant. Keep responses concise and conversational and very short, one or two sentences. User said: "${userText}"`,
     });
 
