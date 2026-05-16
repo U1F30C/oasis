@@ -5,6 +5,7 @@ import type { ControlMessage, PipelineState } from "../../../shared/protocol.js"
 export function useVoiceWS() {
   const ws = useRef<WebSocket | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
   const autoStopTimer = useRef<number | null>(null);
   const [state, setState] = useState<PipelineState>("idle");
@@ -18,6 +19,11 @@ export function useVoiceWS() {
     
     ws.current = new WebSocket(socketUrl);
     ws.current.binaryType = "arraybuffer";
+
+    // Pre-warm mic so first recording starts with zero acquisition latency
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(s => { streamRef.current = s; })
+      .catch(() => {});
 
     ws.current.onopen = () => {
       console.log("[WS] Connected");
@@ -34,7 +40,6 @@ export function useVoiceWS() {
           setState("idle");
         }
       } else {
-        // Binary = WAV response from server
         setState("playing");
         try {
           await playWavBuffer(e.data as ArrayBuffer);
@@ -76,7 +81,10 @@ export function useVoiceWS() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!streamRef.current) {
+        streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      const stream = streamRef.current;
       chunks.current = [];
       recorder.current = new MediaRecorder(stream);
 
@@ -85,8 +93,6 @@ export function useVoiceWS() {
       };
 
       recorder.current.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-
         const blob = new Blob(chunks.current, { type: recorder.current!.mimeType });
         try {
           await captureAndSendAudio(blob, ws.current!);
@@ -118,6 +124,7 @@ export function useVoiceWS() {
     return () => {
       if (ws.current) ws.current.close();
       if (autoStopTimer.current) window.clearTimeout(autoStopTimer.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, []);
 

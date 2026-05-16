@@ -1,7 +1,7 @@
 /**
  * Browser audio utilities for Oasis voice client.
  *
- * captureAndSendAudio: decode MediaRecorder blob → resample to 16kHz mono → send PCM over WebSocket
+ * captureAndSendAudio: decode MediaRecorder blob → resample to 16kHz mono → encode as WAV → send over WebSocket
  * playWavBuffer: decode WAV bytes from server → play via Web Audio API
  */
 
