@@ -6,7 +6,26 @@ import { Memory } from "mem0ai/oss";
 // 3. search() returns { results: MemoryItem[] }, not a plain array
 // 4. search() options use `filters: { user_id }`, not top-level `userId`
 
-const OLLAMA_HOST = "http://192.168.1.4:11434";
+// mem0's ollama client appends /api itself — strip it if OLLAMA_BASE_URL has it
+const OLLAMA_HOST = process.env.OLLAMA_BASE_URL!.replace(/\/api$/, "");
+
+interface EmbeddingModel {
+  dims: number;
+  id: string;
+}
+
+const _quen3Embedding0_6b: EmbeddingModel = {
+  id: "qwen3-embedding:0.6b",
+  dims: 1024,
+};
+
+const embeddingGemma: EmbeddingModel = {
+  id: "embeddinggemma",
+  // 128, 256, 512, 768
+  dims: 768,
+};
+
+const embeddingModel = embeddingGemma;
 
 const config = {
   llm: {
@@ -19,8 +38,16 @@ const config = {
   embedder: {
     provider: "ollama",
     config: {
-      model: "nomic-embed-text",
+      model: embeddingModel.id,
       baseURL: OLLAMA_HOST,
+      embeddingDims: embeddingModel.dims, // explicit — skips the auto-detect probe
+    },
+  },
+  vectorStore: {
+    provider: "memory",
+    config: {
+      dimension: embeddingModel.dims,
+      dbPath: "./mem0.db", // persists to disk (SQLite)
     },
   },
 };
