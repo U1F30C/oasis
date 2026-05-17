@@ -100,6 +100,30 @@ Make the assistant actually useful beyond Q&A:
 - **Tool use / integrations** — home automation (Home Assistant), calendar, timers, web search for grounding
 - **Existing assistant frameworks** — evaluate integrating with or replacing the LLM layer with a purpose-built local assistant (e.g. Picoclaw, Open Voice OS) for richer skill support
 
+## References
+
+**STT**
+- [Xenova/whisper-tiny.en](https://huggingface.co/Xenova/whisper-tiny.en) — quantized Whisper model used for transcription
+- [transformers.js-examples/whisper-node](https://github.com/huggingface/transformers.js-examples/blob/main/whisper-node/utils.js) — reference Node.js Whisper implementation
+- [Transformers.js pipeline API](https://huggingface.co/docs/transformers.js/api/pipelines) — pipeline docs (TextToAudio, AutomaticSpeechRecognition)
+
+**TTS**
+- [KittenTTS](https://github.com/KittenML/KittenTTS) — lightweight TTS (15–80M params), used via Python bridge
+- [KittenTTS available models](https://github.com/KittenML/KittenTTS#available-models)
+- [KittenTTS ONNX model internals](https://github.com/KittenML/KittenTTS/blob/main/kittentts/onnx_model.py)
+- [mlx-community/kitten-tts-nano-0.8](https://huggingface.co/mlx-community/kitten-tts-nano-0.8) — MLX port (Apple Silicon)
+- [kokoro-js](https://www.npmjs.com/package/kokoro-js) — JS-native Kokoro TTS used as default backend
+- [Moxin-TTS](https://huggingface.co/cshbli/Moxin-TTS) — Kokoro-based model variant worth exploring
+- [wavefile](https://www.npmjs.com/package/wavefile) — WAV encoding/decoding
+
+**LLM**
+- [gemma-3-270m](https://huggingface.co/google/gemma-3-270m) — candidate for on-device / low-memory inference
+- [gemma-3n-E2B](https://huggingface.co/google/gemma-3n-E2B) — multimodal variant, possible future direction
+
+**Audio / Node.js**
+- [speaker](https://www.npmjs.com/package/speaker) — PCM audio output for Node.js (used in experiments)
+- [node-audiorecorder](https://www.npmjs.com/package/node-audiorecorder) — microphone input for Node.js (IoT client candidate)
+
 ## Experiments
 
 Standalone scripts for testing individual components:
